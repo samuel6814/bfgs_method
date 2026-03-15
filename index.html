@@ -150,7 +150,7 @@
 
         /* Plot Container */
         #plot-container {
-            width: 800px;
+            width: 100%;
             height: 600px;
             margin: 0 auto 30px auto;
             border: 1px solid #e1e4e8;
@@ -189,6 +189,49 @@
             width: 20px;
             height: 20px;
             fill: currentColor;
+        }
+
+        /* Responsive Media Queries */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 10px;
+            }
+            .dashboard-container {
+                padding: 25px 15px;
+            }
+            h1 {
+                font-size: 22px;
+            }
+            #plot-container {
+                height: 450px;
+            }
+            .controls-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .control-group {
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+            .control-group input[type="text"] {
+                width: 100% !important;
+                margin-top: 5px;
+            }
+            .control-group input[type="number"] {
+                width: 60% !important;
+                flex-grow: 1;
+                margin-left: 10px;
+            }
+            .btn-update {
+                width: 100%;
+                margin-top: 5px;
+            }
+            .btn-download {
+                width: 100%;
+                font-size: 14px;
+                padding: 12px;
+            }
         }
     </style>
 </head>
@@ -438,7 +481,6 @@
 
                 // --- 5. Define Plotly Layout & Render ---
                 const layout = {
-                    width: 800, height: 600,
                     margin: { l: 50, r: 50, b: 50, t: 50 },
                     plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
                     xaxis: { title: 'Parameter X', zeroline: true, zerolinecolor: '#cccccc', gridcolor: 'rgba(0,0,0,0)' },
@@ -447,7 +489,7 @@
                 };
 
                 const config = {
-                    responsive: false, displayModeBar: true, displaylogo: false,
+                    responsive: true, displayModeBar: true, displaylogo: false,
                     toImageButtonOptions: { format: 'png', filename: 'GD_vs_BFGS_Optimization', height: 600, width: 800, scale: 2 }
                 };
 
