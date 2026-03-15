@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimization Algorithms: Gradient Descent vs BFGS</title>
+    <!-- Load Plotly.js from CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Load Math.js for parsing user functions and auto-differentiating -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <style>
+        /* CSS Reset and Styling */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .dashboard-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #1a1a1a;
+            font-size: 28px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .controls-container {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #444;
+        }
+
+        .control-group input[type="text"] {
+            width: 200px;
+        }
+
+        .control-group input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .btn-update {
+            background-color: #0056b3;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 9px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-update:hover { background-color: #004494; }
+
+        /* Help Panel Styling */
+        .help-panel {
+            background-color: #f0f7ff;
+            border-left: 4px solid #0056b3;
+            border-radius: 4px;
+            padding: 16px 20px;
+            margin-bottom: 30px;
+            text-align: left;
+            font-size: 14px;
+            color: #444;
+        }
+
+        .help-panel h3 {
+            font-size: 15px;
+            color: #0056b3;
+            margin-bottom: 10px;
+        }
+
+        .help-panel ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .help-panel li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .help-panel strong {
+            color: #1a1a1a;
+            background-color: #e1eefc;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            width: 100%;
+            text-align: center;
+            margin-top: 10px;
+            font-weight: 600;
+            height: 20px;
+        }
+
+        p.subtitle {
+            color: #555;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        /* Plot Container */
+        #plot-container {
+            width: 800px;
+            height: 600px;
+            margin: 0 auto 30px auto;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #fafbfc;
+        }
+
+        /* Custom Download Button */
+        .btn-download {
+            background-color: #228B22; /* Forest Green */
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-download:hover {
+            background-color: #1b6d1b;
+            transform: translateY(-1px);
+        }
+
+        .btn-download:active {
+            transform: translateY(1px);
+        }
+
+        .btn-download svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <h1>Gradient Descent vs. BFGS Optimization</h1>
+        <p class="subtitle">
+            Visualizing convergence paths on 2D functions. Enter a function below using <strong>x</strong> and <strong>y</strong>.<br>
+            Notice how Gradient Descent struggles with highly curved landscapes, while BFGS intelligently maps the curvature.
+        </p>
+
+        <!-- Dynamic Controls -->
+        <div class="controls-container">
+            <div class="control-group">
+                <label>f(x, y) =</label>
+                <input type="text" id="funcInput" value="x^2 + 10 * y^2">
+            </div>
+            <div class="control-group">
+                <label>Start X:</label>
+                <input type="number" id="startX" value="8" step="0.5" style="width: 70px;">
+            </div>
+            <div class="control-group">
+                <label>Start Y:</label>
+                <input type="number" id="startY" value="2" step="0.5" style="width: 70px;">
+            </div>
+            <div class="control-group">
+                <label>GD Learning Rate:</label>
+                <input type="number" id="lrInput" value="0.092" step="0.001" style="width: 90px;">
+            </div>
+            <button class="btn-update" onclick="generatePlot()">Update Plot</button>
+            <div id="errorMsg" class="error-message"></div>
+        </div>
+
+        <!-- Explanatory Help Panel -->
+        <div class="help-panel">
+            <h3>Understanding the Parameters:</h3>
+            <ul>
+                <li><strong>f(x, y)</strong> The mathematical landscape (objective function). Think of it as physical terrain with hills and valleys. Both algorithms are trying to find the absolute lowest point on this map.</li>
+                <li><strong>Start X & Y</strong> The exact coordinates where both algorithms are dropped off to begin their search. Changing the start point can drastically change the path they take.</li>
+                <li><strong>GD Learning Rate</strong> The step size for Gradient Descent. If it's too small, progress is incredibly slow. If it's too large, it zig-zags wildly across the valley or completely bounces out (diverges).</li>
+            </ul>
+        </div>
+
+        <!-- Plotly Chart Target -->
+        <div id="plot-container"></div>
+
+        <!-- Custom Programmatic Download Button -->
+        <button class="btn-download" onclick="downloadVisualization()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+            Download PNG for Presentation
+        </button>
+    </div>
+
+    <script>
+        // Helper Math Functions for 2D Vectors & Matrices
+        const dot = (a, b) => a[0]*b[0] + a[1]*b[1];
+        const add = (a, b) => [a[0]+b[0], a[1]+b[1]];
+        const sub = (a, b) => [a[0]-b[0], a[1]-b[1]];
+        const scale = (a, s) => [a[0]*s, a[1]*s];
+        const matVec = (M, v) => [M[0][0]*v[0] + M[0][1]*v[1], M[1][0]*v[0] + M[1][1]*v[1]];
+
+        function generatePlot() {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = '';
+
+            try {
+                // Read inputs
+                const funcStr = document.getElementById('funcInput').value;
+                const startX = parseFloat(document.getElementById('startX').value);
+                const startY = parseFloat(document.getElementById('startY').value);
+                const lr = parseFloat(document.getElementById('lrInput').value);
+
+                // --- 0. Setup Math.js Expressions & Derivatives ---
+                const f_node = math.parse(funcStr);
+                const dx_node = math.derivative(f_node, 'x');
+                const dy_node = math.derivative(f_node, 'y');
+
+                const f_comp = f_node.compile();
+                const dx_comp = dx_node.compile();
+                const dy_comp = dy_node.compile();
+
+                // Objective function
+                const f = (x) => f_comp.evaluate({x: x[0], y: x[1]});
+                // Gradient vector
+                const grad_f = (x) => [dx_comp.evaluate({x: x[0], y: x[1]}), dy_comp.evaluate({x: x[0], y: x[1]})];
+                
+                const start_pt = [startX, startY];
+
+                // --- 1. Generate Data for the Landscape (Contour Background) ---
+                const x_vals = [];
+                const y_vals = [];
+                const z_vals = [];
+
+                // Dynamically size the grid based on the start point to ensure it's visible
+                const spanX = Math.max(5, Math.abs(startX) * 1.5);
+                const spanY = Math.max(5, Math.abs(startY) * 1.5);
+                
+                const steps = 80; // Resolution
+                for (let i = 0; i <= steps; i++) {
+                    x_vals.push(-spanX + (2 * spanX * i) / steps);
+                    y_vals.push(-spanY + (2 * spanY * i) / steps);
+                }
+
+                // Calculate Z values
+                for (let j = 0; j < y_vals.length; j++) {
+                    let row = [];
+                    for (let i = 0; i < x_vals.length; i++) {
+                        let val = f([x_vals[i], y_vals[j]]);
+                        // Cap extremely high values to prevent plotting artifacts
+                        row.push(Math.min(val, 1e6));
+                    }
+                    z_vals.push(row);
+                }
+
+                // --- 2. Dynamic Gradient Descent Path ---
+                const gd_x = [start_pt[0]];
+                const gd_y = [start_pt[1]];
+                let curr_gd = [...start_pt];
+
+                for (let i = 0; i < 50; i++) { // Max 50 iterations for visual clarity
+                    let g = grad_f(curr_gd);
+                    curr_gd = sub(curr_gd, scale(g, lr));
+                    
+                    // Break if it diverges (numbers get too big/NaN)
+                    if (!isFinite(curr_gd[0]) || !isFinite(curr_gd[1])) break;
+                    
+                    gd_x.push(curr_gd[0]);
+                    gd_y.push(curr_gd[1]);
+                }
+
+                // --- 3. Dynamic BFGS Path ---
+                const bfgs_x = [start_pt[0]];
+                const bfgs_y = [start_pt[1]];
+                let x_k = [...start_pt];
+                let H_k = [[1, 0], [0, 1]]; 
+
+                for (let i = 0; i < 20; i++) {
+                    let g_k = grad_f(x_k);
+                    let p_k = scale(matVec(H_k, g_k), -1);
+
+                    // Backtracking Line Search
+                    let alpha = 1.0;
+                    const c1 = 1e-4;
+                    const rho = 0.5;
+                    let iter = 0;
+                    while (f(add(x_k, scale(p_k, alpha))) > f(x_k) + c1 * alpha * dot(g_k, p_k) && iter < 20) {
+                        alpha *= rho;
+                        iter++;
+                    }
+
+                    let x_next = add(x_k, scale(p_k, alpha));
+                    
+                    if (!isFinite(x_next[0]) || !isFinite(x_next[1])) break;
+                    
+                    bfgs_x.push(x_next[0]); 
+                    bfgs_y.push(x_next[1]);
+
+                    let s_k = sub(x_next, x_k);
+                    let y_k = sub(grad_f(x_next), g_k);
+
+                    if (Math.sqrt(dot(g_k, g_k)) < 1e-5) break;
+
+                    let rho_k = 1.0 / dot(y_k, s_k);
+                    if (isFinite(rho_k)) {
+                        let V = [
+                            [1 - rho_k * s_k[0]*y_k[0],   - rho_k * s_k[0]*y_k[1]],
+                            [  - rho_k * s_k[1]*y_k[0], 1 - rho_k * s_k[1]*y_k[1]]
+                        ];
+                        let Vt = [
+                            [1 - rho_k * y_k[0]*s_k[0],   - rho_k * y_k[0]*s_k[1]],
+                            [  - rho_k * y_k[1]*s_k[0], 1 - rho_k * y_k[1]*s_k[1]]
+                        ];
+                        let M = [
+                            [V[0][0]*H_k[0][0] + V[0][1]*H_k[1][0], V[0][0]*H_k[0][1] + V[0][1]*H_k[1][1]],
+                            [V[1][0]*H_k[0][0] + V[1][1]*H_k[1][0], V[1][0]*H_k[0][1] + V[1][1]*H_k[1][1]]
+                        ];
+                        let M2 = [
+                            [M[0][0]*Vt[0][0] + M[0][1]*Vt[1][0], M[0][0]*Vt[0][1] + M[0][1]*Vt[1][1]],
+                            [M[1][0]*Vt[0][0] + M[1][1]*Vt[1][0], M[1][0]*Vt[0][1] + M[1][1]*Vt[1][1]]
+                        ];
+                        let ssT = [
+                            [rho_k * s_k[0]*s_k[0], rho_k * s_k[0]*s_k[1]],
+                            [rho_k * s_k[1]*s_k[0], rho_k * s_k[1]*s_k[1]]
+                        ];
+                        H_k = [
+                            [M2[0][0] + ssT[0][0], M2[0][1] + ssT[0][1]],
+                            [M2[1][0] + ssT[1][0], M2[1][1] + ssT[1][1]]
+                        ];
+                    }
+                    x_k = x_next;
+                }
+
+                // Estimate Minimum from BFGS final point
+                const final_min_x = bfgs_x[bfgs_x.length - 1];
+                const final_min_y = bfgs_y[bfgs_y.length - 1];
+
+                // --- 4. Define Plotly Traces ---
+                const trace_contour = {
+                    z: z_vals,
+                    x: x_vals,
+                    y: y_vals,
+                    type: 'contour',
+                    colorscale: 'Blues',
+                    showscale: false,
+                    contours: { coloring: 'heatmap', showlines: true },
+                    line: { color: 'rgba(255, 255, 255, 0.3)', width: 0.5 },
+                    hoverinfo: 'none',
+                    name: 'Landscape'
+                };
+
+                const trace_gd = {
+                    x: gd_x, y: gd_y,
+                    mode: 'lines+markers', type: 'scatter',
+                    name: 'Gradient Descent',
+                    line: { color: '#FF3333', width: 2 },
+                    marker: { color: '#FF3333', size: 6, symbol: 'circle' }
+                };
+
+                const trace_bfgs = {
+                    x: bfgs_x, y: bfgs_y,
+                    mode: 'lines+markers', type: 'scatter',
+                    name: 'BFGS (Quasi-Newton)',
+                    line: { color: '#228B22', width: 3, shape: 'spline', smoothing: 0.6 },
+                    marker: { color: '#228B22', size: 8, symbol: 'square' }
+                };
+
+                const trace_start = {
+                    x: [startX], y: [startY],
+                    mode: 'markers+text', type: 'scatter', name: 'Start Point',
+                    text: [`Start (${startX}, ${startY})`], textposition: 'top center',
+                    textfont: { color: '#333', size: 12, weight: 'bold' },
+                    marker: { symbol: 'circle', size: 12, color: 'black', line: { color: 'white', width: 2 } },
+                    showlegend: false
+                };
+
+                const trace_min = {
+                    x: [final_min_x], y: [final_min_y],
+                    mode: 'markers+text', type: 'scatter', name: 'Converged Min',
+                    text: [`Min (${final_min_x.toFixed(2)}, ${final_min_y.toFixed(2)})`], textposition: 'bottom center',
+                    textfont: { color: '#333', size: 12, weight: 'bold' },
+                    marker: { symbol: 'star', size: 16, color: '#FFD700', line: { color: 'black', width: 1 } },
+                    showlegend: false
+                };
+
+                // --- 5. Define Plotly Layout & Render ---
+                const layout = {
+                    width: 800, height: 600,
+                    margin: { l: 50, r: 50, b: 50, t: 50 },
+                    plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
+                    xaxis: { title: 'Parameter X', zeroline: true, zerolinecolor: '#cccccc', gridcolor: 'rgba(0,0,0,0)' },
+                    yaxis: { title: 'Parameter Y', zeroline: true, zerolinecolor: '#cccccc', gridcolor: 'rgba(0,0,0,0)' },
+                    legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255, 255, 255, 0.9)', bordercolor: '#ddd', borderwidth: 1 }
+                };
+
+                const config = {
+                    responsive: false, displayModeBar: true, displaylogo: false,
+                    toImageButtonOptions: { format: 'png', filename: 'GD_vs_BFGS_Optimization', height: 600, width: 800, scale: 2 }
+                };
+
+                Plotly.newPlot('plot-container', [trace_contour, trace_gd, trace_bfgs, trace_start, trace_min], layout, config);
+
+            } catch (err) {
+                console.error(err);
+                errorMsg.textContent = "Error parsing function! Ensure it is a valid math expression using 'x' and 'y'.";
+            }
+        }
+
+        // --- 6. Custom Programmatic Download Function ---
+        function downloadVisualization() {
+            Plotly.downloadImage('plot-container', {
+                format: 'png', width: 800, height: 600,
+                filename: 'GD_vs_BFGS_Optimization_Presentation', scale: 2
+            });
+        }
+
+        // Generate the initial plot on page load
+        window.onload = generatePlot;
+    </script>
+</body>
+</html>
